@@ -1,0 +1,5 @@
+main
+src/parser
+test
+.deps
+.obj
