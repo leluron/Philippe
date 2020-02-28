@@ -14,12 +14,12 @@ stat
   ;
 
 assignment
-  : explist '=' exp                      #stdassign
-  | exp ('+=' | '-=' | '*=' | '/=') exp  #compoundassign
+  : explist '=' exp                         #stdassign
+  | exp op=('+=' | '-=' | '*=' | '/=') exp  #compoundassign
   ;
 functioncall: exp '(' explist? ')';
 while_stat: 'while' exp stat;
-if_stat: 'if' exp stat ('elseif' exp stat)* ('else' stat)?;
+if_stat: 'if' exp stat ('elseif' exp stat)* ('else' els=stat)?;
 for_stat: 'for' ID 'in' exp stat;
 
 exp
@@ -38,14 +38,13 @@ exp
   | exp '.' ID                        #memberexp
   | exp '[' exp ']'                   #indexexp
   | exp '(' explist? ')'              #funccallexp
-  | '-' exp                           #unaryminusexp
-  | 'not' exp                         #notexp
+  | op=('-' | 'not') exp                 #unaryexp
   | <assoc=right> exp '^' exp         #exponentexp
-  | exp ('*' | '/' | '%') exp         #multiplicativeexp
-  | exp ('+' | '-') exp               #additiveexp
+  | exp op=('*' | '/' | '%') exp         #multiplicativeexp
+  | exp op=('+' | '-') exp               #additiveexp
   | <assoc=right> exp '..' exp        #strcatexp
-  | exp ('<=' | '<' | '>' | '>=') exp #relationexp
-  | exp ('==' | '!=' ) exp            #comparisonexp
+  | exp op=('<=' | '<' | '>' | '>=') exp #relationexp
+  | exp op=('==' | '!=' ) exp            #comparisonexp
   | exp 'and' exp                     #andexp
   | exp 'or' exp                      #orexp
   | exp 'if' exp 'else' exp           #ternaryexp

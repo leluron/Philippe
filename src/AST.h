@@ -3,8 +3,8 @@
 #include <memory>
 #include <vector>
 
-struct Exp;
-struct Stat;
+class Exp;
+class Stat;
 
 using expp = std::shared_ptr<Exp>;
 using expl = std::vector<expp>;
@@ -15,123 +15,273 @@ using id = std::string;
 using arglist = std::vector<id>;
 
 
-struct Stat {
-
+class Stat {
+public:
+    
 };
 
 
-struct AssignStat : public Stat {
+class AssignStat : public Stat {
+public:
+    AssignStat(expl left, expp right) {
+        this->left = left;
+        this->right = right;
+    }
     expl left;
     expp right;
 };
 
 
-struct FuncCallStat : public Stat {
+class FuncCallStat : public Stat {
+public:
+    FuncCallStat(expp func, expl args) {
+        this->func = func;
+        this->args = args;
+    }
     expp func;
-    expp args;
+    expl args;
 };
 
 
-struct WhileStat : public Stat {
+class WhileStat : public Stat {
+public:
+    WhileStat(expp cond, statp body) {
+        this->cond = cond;
+        this->body = body;
+    }
     expp cond;
     statp body;
 };
 
 
-struct IfStat : public Stat {
+class IfStat : public Stat {
+public:
+    IfStat(expp cond, statp thenbody, statp elsebody) {
+        this->cond = cond;
+        this->thenbody = thenbody;
+        this->elsebody = elsebody;
+    }
     expp cond;
     statp thenbody;
     statp elsebody;
 };
 
 
-struct ForStat : public Stat {
+class ForStat : public Stat {
+public:
+    ForStat(id name, expp list, statp body) {
+        this->name = name;
+        this->list = list;
+        this->body = body;
+    }
     id name;
     expp list;
     statp body;
 };
 
 
-struct BlockStat : public Stat {
+class BlockStat : public Stat {
+public:
+    BlockStat(block stats) {
+        this->stats = stats;
+    }
     block stats;
 };
 
+class BreakStat : public Stat {
+public:
 
-struct Exp {
+};
+
+class ReturnStat : public Stat {
+public:
+    ReturnStat(expp ret) {
+        this->ret = ret;
+    }
+    expp ret;
+};
+
+class EmptyStat : public Stat {
+
+};
+
+class Exp {
+public:
 
 };
 
 
-struct NilExp : public Exp {
+class NilExp : public Exp {
+public:
 
 };
 
 
-struct BoolExp : public Exp {
+class BoolExp : public Exp {
+public:
+    BoolExp(bool val) {
+        this->val = val;
+    }
     bool val;
 };
 
-struct IntExp : public Exp {
+class IntExp : public Exp {
+public:
+    IntExp(long val) {
+        this->val = val;        
+    }
     long val;
 };
 
-struct FloatExp : public Exp {
+class FloatExp : public Exp {
+public:
+    FloatExp(double val) {
+        this->val = val;
+    }
     double val;
 };
 
-struct StringExp : public Exp {
+class StringExp : public Exp {
+public:
+    StringExp(std::string val) {
+        this->val = val;
+    }
     std::string val;
 };
 
-struct IdExp : public Exp {
+class IdExp : public Exp {
+public:
+    IdExp(id name) {
+        this->name = name;
+    }
     id name;
 };
 
-struct FieldDef {
+class FieldDef {
+public:
+    FieldDef() = default;
+    FieldDef(id name, expp e) {
+        this->name = name;
+        this->e = e;
+    }
     id name;
     expp e;
 };
 
-struct ObjExp : public Exp {
+class ObjExp : public Exp {
+public:
+    ObjExp(std::vector<FieldDef> fields) {
+        this->fields = fields;
+    }
     std::vector<FieldDef> fields;
 };
 
-struct ListExp : public Exp {
+class ListExp : public Exp {
+public:
+    ListExp(expl elements) {
+        this->elements = elements;
+    }
     expl elements;
 };
 
-struct RangeExp : public Exp {
+class RangeExp : public Exp {
+public:
+    RangeExp(expp begin, expp end) {
+        this->begin = begin;
+        this->end = end;
+    }
     expp begin, end;
 };
 
-struct TupleExp : public Exp {
+class TupleExp : public Exp {
+public:
+    TupleExp(expl elements) {
+        this->elements = elements;
+    }
     expl elements;
 };
 
-struct FuncBody {
+class FuncBody {
+public:
+    FuncBody() = default;
+    FuncBody(block stats, expp ret) {
+        this->stats = stats;
+        this->ret = ret;
+    }
     block stats;
     expp ret;
 };
 
-struct FuncExp : public Exp {
+class FuncExp : public Exp {
+public:
+    FuncExp(arglist args, FuncBody body) {
+        this->args = args;
+        this->body = body;
+    }
     arglist args;
     FuncBody body;
 };
 
-struct MemberExp : public Exp {
+class MemberExp : public Exp {
+public:
+    MemberExp(expp left, id name) {
+        this->left = left;
+        this->name = name;
+    }
     expp left;
     id name;
 };
 
-struct IndexExp : public Exp {
+class IndexExp : public Exp {
+public:
+    IndexExp(expp left, expp index) {
+        this->left = left;
+        this->index = index;
+    }
     expp left, index;
 };
 
-struct CallExp : public Exp {
+class CallExp : public Exp {
+public:
+    CallExp(expp func, expl args) {
+        this->func = func;
+        this->args = args;
+    }
     expp func;
     expl args;
 };
 
-struct TernaryExp : public Exp {
+enum class UnaryOp {Minus, Not};
+
+class UnaryOpExp : public Exp {
+public:
+    UnaryOpExp(UnaryOp op, expp e) {
+        this->op = op;
+        this->e = e;
+    }
+    UnaryOp op;
+    expp e;
+};
+
+enum class BinOp {Pow, Mul, Div, Mod, Plus, Minus, Concat, Lteq, Lt, Gt, Gteq, Eq, Neq, And, Or};
+
+class BinOpExp : public Exp {
+public:
+    BinOpExp(BinOp op, expp left, expp right) {
+        this->op = op;
+        this->left = left;
+        this->right = right;
+    }
+    BinOp op;
+    expp left, right;
+};
+
+class TernaryExp : public Exp {
+public:
+    TernaryExp(expp then, expp cond, expp els) {
+        this->then = then;
+        this->cond = cond;
+        this->els = els;
+    }
     expp then, cond, els;
 };

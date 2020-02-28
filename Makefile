@@ -21,7 +21,7 @@ PARSERSRC = $(patsubst %, $(PARSERDIR)/%.cpp, $(PARSER))
 
 GRAMMARFILE = Philippe.g4
 
-all: $(MAIN)
+all: $(MAIN) test
 
 cleancompile:
 	rm -f $(MAIN)
