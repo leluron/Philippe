@@ -10,8 +10,8 @@ FLAGS=-I/usr/include/antlr4-runtime/ -g -std=c++11
 LIBS=-lantlr4-runtime
 
 PARSER = PhilippeParser PhilippeLexer
-SRC = main $(PARSER)
-OBJPATH = $(patsubst %, $(OBJDIR)/%.o, $(SRC))
+SRC = main Printer
+OBJPATH = $(patsubst %, $(OBJDIR)/%.o, $(PARSER) $(SRC))
 
 MAIN = main
 
@@ -51,7 +51,7 @@ $(DEPSDIR): ; mkdir -p $@
 $(OBJDIR): ; mkdir -p $@
 $(PARSERDIR): ; mkdir -p $@
 
-DEPS := main
+DEPS := $(SRC)
 DEPSFILES := $(patsubst %,$(DEPSDIR)/%.d, $(DEPS))
 $(DEPSFILES):
 include $(wildcard $(DEPSFILES))

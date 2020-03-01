@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <ostream>
 
 class Exp;
 class Stat;
@@ -14,10 +15,11 @@ using block = std::vector<statp>;
 using id = std::string;
 using arglist = std::vector<id>;
 
+void printBlock(std::ostream &out, int indent, block b);
 
 class Stat {
 public:
-    
+    virtual void print(std::ostream &out, int indent) {}
 };
 
 
@@ -29,6 +31,7 @@ public:
     }
     expl left;
     expp right;
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 
@@ -40,6 +43,7 @@ public:
     }
     expp func;
     expl args;
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 
@@ -51,6 +55,8 @@ public:
     }
     expp cond;
     statp body;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 
@@ -64,6 +70,8 @@ public:
     expp cond;
     statp thenbody;
     statp elsebody;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 
@@ -77,6 +85,8 @@ public:
     id name;
     expp list;
     statp body;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 
@@ -86,11 +96,13 @@ public:
         this->stats = stats;
     }
     block stats;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class BreakStat : public Stat {
 public:
-
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class ReturnStat : public Stat {
@@ -99,20 +111,26 @@ public:
         this->ret = ret;
     }
     expp ret;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class EmptyStat : public Stat {
 
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class Exp {
 public:
-
+    virtual void print(std::ostream &out, int indent) {}
 };
 
 
 class NilExp : public Exp {
 public:
+
+    virtual void print(std::ostream &out, int indent) override;
 
 };
 
@@ -123,6 +141,8 @@ public:
         this->val = val;
     }
     bool val;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class IntExp : public Exp {
@@ -131,6 +151,8 @@ public:
         this->val = val;        
     }
     long val;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class FloatExp : public Exp {
@@ -139,6 +161,8 @@ public:
         this->val = val;
     }
     double val;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class StringExp : public Exp {
@@ -147,6 +171,8 @@ public:
         this->val = val;
     }
     std::string val;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class IdExp : public Exp {
@@ -155,6 +181,8 @@ public:
         this->name = name;
     }
     id name;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class FieldDef {
@@ -174,6 +202,8 @@ public:
         this->fields = fields;
     }
     std::vector<FieldDef> fields;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class ListExp : public Exp {
@@ -182,6 +212,8 @@ public:
         this->elements = elements;
     }
     expl elements;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class RangeExp : public Exp {
@@ -191,6 +223,8 @@ public:
         this->end = end;
     }
     expp begin, end;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class TupleExp : public Exp {
@@ -199,6 +233,8 @@ public:
         this->elements = elements;
     }
     expl elements;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class FuncBody {
@@ -220,6 +256,8 @@ public:
     }
     arglist args;
     FuncBody body;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class MemberExp : public Exp {
@@ -230,6 +268,8 @@ public:
     }
     expp left;
     id name;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class IndexExp : public Exp {
@@ -239,6 +279,8 @@ public:
         this->index = index;
     }
     expp left, index;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class CallExp : public Exp {
@@ -249,6 +291,8 @@ public:
     }
     expp func;
     expl args;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 enum class UnaryOp {Minus, Not};
@@ -261,6 +305,8 @@ public:
     }
     UnaryOp op;
     expp e;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 enum class BinOp {Pow, Mul, Div, Mod, Plus, Minus, Concat, Lteq, Lt, Gt, Gteq, Eq, Neq, And, Or};
@@ -274,6 +320,8 @@ public:
     }
     BinOp op;
     expp left, right;
+
+    virtual void print(std::ostream &out, int indent) override;
 };
 
 class TernaryExp : public Exp {
@@ -284,4 +332,6 @@ public:
         this->els = els;
     }
     expp then, cond, els;
+
+    virtual void print(std::ostream &out, int indent) override;
 };

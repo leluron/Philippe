@@ -20,5 +20,7 @@ int main() {
     ASTGen gen;
     auto ast = gen.gen(tree);
 
+    printBlock(cout, -1, ast);
+
     return 0;
 }
