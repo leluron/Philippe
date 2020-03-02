@@ -11,7 +11,7 @@ void printexpl(std::ostream &out, int indent, expl l, const char* sep) {
 }
 
 void ind(std::ostream &out, int indent) {
-    for (int i=0;i<indent;i++) out << "\t";
+    for (int i=1;i<indent;i++) out << "\t";
 }
 
 void printBlock(std::ostream &out, int indent, block b) {

@@ -4,6 +4,8 @@
 #include "parser/PhilippeParser.h"
 #include "parser/PhilippeLexer.h"
 #include "ASTGen.h"
+#include "Printer.h"
+#include "Interpreter.h"
 
 using namespace std;
 using namespace antlr4;
@@ -20,7 +22,10 @@ int main() {
     ASTGen gen;
     auto ast = gen.gen(tree);
 
-    printBlock(cout, -1, ast);
+    printBlock(cout, 0, ast);
+
+    InterpreterContext ic(cout);
+    evalBlock(ic, ast);
 
     return 0;
 }
