@@ -10,7 +10,7 @@ FLAGS=-I/usr/include/antlr4-runtime/ -g -std=c++11
 LIBS=-lantlr4-runtime
 
 PARSER = PhilippeParser PhilippeLexer
-SRC = main Printer Interpreter
+SRC = main ASTGen Printer Interpreter
 OBJPATH = $(patsubst %, $(OBJDIR)/%.o, $(PARSER) $(SRC))
 
 MAIN = main

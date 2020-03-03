@@ -223,4 +223,7 @@ public:
 
     std::ostream &out;
     std::vector<ObjValue> vars;
+    bool broke = false;
+    bool returned = false;
+    valp returnval = nullptr;
 };

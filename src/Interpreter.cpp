@@ -4,6 +4,7 @@
 void evalBlock(InterpreterContext &c, block b) {
     for (auto s : b) {
         s->eval(c);
+        if (c.broke || c.returned) break;
     }
 }
 
@@ -31,11 +32,14 @@ void WhileStat::eval(InterpreterContext &c) {
         if (v->kind() != ValueKind::Bool) throw "While condition must be a bool";
         if (!dynamic_cast<BoolValue*>(v.get())->val) return;
         body->eval(c);
+        if (c.broke || c.returned) break;
     }
 }
 
 void IfStat::eval(InterpreterContext &c) {
-    if (cond->eval(c))
+    auto v = cond->eval(c);
+    if (v->kind() != ValueKind::Bool) throw "While condition must be a bool";
+    if (dynamic_cast<BoolValue*>(v.get())->val) 
         thenbody->eval(c);
     else
         elsebody->eval(c);
@@ -43,13 +47,13 @@ void IfStat::eval(InterpreterContext &c) {
 
 void ForStat::eval(InterpreterContext &c) {
     auto l = list->eval(c);
-
     if (l->kind() == ValueKind::List) {
         for (auto i : dynamic_cast<ListValue*>(l.get())->elements) {
             c.newFrame();
             c.add(name, i);
             body->eval(c);
             c.popFrame();
+            c.broke = false;
         }
     } else if (l->kind() == ValueKind::Range) {
         auto r = dynamic_cast<RangeValue*>(l.get());
@@ -58,6 +62,7 @@ void ForStat::eval(InterpreterContext &c) {
             c.add(name, valp(new IntValue(i)));
             body->eval(c);
             c.popFrame();
+            c.broke = false;
         }
     } else throw;
 
@@ -68,11 +73,12 @@ void BlockStat::eval(InterpreterContext &c) {
 }
 
 void BreakStat::eval(InterpreterContext &c) {
-    
+    c.broke = true;
 }
 
 void ReturnStat::eval(InterpreterContext &c) {
-    
+    c.returned = true;
+    c.returnval = ret->eval(c);
 }
 
 void EmptyStat::eval(InterpreterContext &c) {}
@@ -179,6 +185,11 @@ valp CallExp::eval(InterpreterContext &c) {
         }
 
         evalBlock(c, f0.body.stats);
+        if (c.returned) {
+            c.returned = false;
+            return c.returnval;
+        }
+
         auto ret = f0.body.ret->eval(c);
         c.popFrame();
         return ret;
