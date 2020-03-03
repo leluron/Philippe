@@ -48,37 +48,39 @@ int main() {
         Neqi, Noop,
         And, Noop,
         Not, Noop,
-        IfJump, 72,
+        IfJump, 74,
 
         LoadM, n, // println(n)
-        Call, Printlni,
+        LoadS, 76,
+        Call, Printf,
 
-        LoadS, 2, // if n%2==1, 30
+        LoadS, 2, // if n%2==1, 32
         LoadM, n,
         Modi, Noop,
         LoadS, 1,
         Eqi, Noop,
-        IfJump, 50,
+        IfJump, 52,
 
-        LoadS, 2, // n/2, 42
+        LoadS, 2, // n/2, 44
         LoadM, n,
         Divi, Noop,
-        Jump, 60,
+        Jump, 62,
 
-        LoadS, 3, // 3*n+1, 50
+        LoadS, 3, // 3*n+1, 52
         LoadM, n,
         Muli, Noop,
         LoadS, 1,
         Addi, Noop,
 
-        Store, n, // n assign, i += 1, 60
+        Store, n, // n assign, i += 1, 62
         LoadS, 1,
         LoadM, i,
         Addi, Noop,
         Store, i,
         Jump, 8,
 
-        End, Noop // 72
+        End, Noop, // 74
+        '%', 'd', '\n', '\0' // printf string, 76
     });
 
     cout << "VM output : " << endl;

@@ -35,13 +35,13 @@ enum Instruction {
 
 enum ReservedFuncs {
     RESERVED_FUNCS = 0x0ff0000000000000,
-    Printlni,
+    Printf,
 };
 
 class VirtualMachine {
 public:
     VirtualMachine(std::ostream &o) : out(o) {
-        stdlib[Printlni] = &VirtualMachine::printlni;
+        stdlib[Printf] = &VirtualMachine::printf;
     }
     void setSize(size_t size) {
         this->memory.resize(size);
@@ -347,10 +347,30 @@ private:
 
     std::ostream &out;
 
-    void printlni() {
-        auto val = operandStack.top();
+    void printf() {
+        auto straddress = operandStack.top();
         operandStack.pop();
-        out << val << std::endl;
+
+        while (true) {
+            char c = (char)memory[straddress];
+            if (c == '\0') break;
+            if (c == '%') {
+                straddress++;
+                char c1 = (char)memory[straddress];
+                if (c1 == 'd' || c1 == 'i') {
+                    auto v = operandStack.top();
+                    operandStack.pop();
+                    out << v;
+                } else if (c1 == 'f' || c1 == 'g') {
+                    auto v = asfloat(operandStack.top());
+                    operandStack.pop();
+                    out << v;
+                }
+            } else {
+                out << c;
+            }
+            straddress++;
+        }
     }
 
 };
