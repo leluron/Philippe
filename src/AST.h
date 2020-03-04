@@ -20,10 +20,13 @@ class InterpreterContext;
 class Value;
 using valp = std::shared_ptr<Value>;
 
+class CodeGenContext;
+
 class Stat {
 public:
     virtual void print(std::ostream &out, int indent) {}
     virtual void eval(InterpreterContext &c) {}
+    virtual void codegen(CodeGenContext &c) {}
 };
 
 
@@ -37,6 +40,7 @@ public:
     expp right;
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 
@@ -50,6 +54,7 @@ public:
     expl args;
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 
@@ -64,6 +69,7 @@ public:
 
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 
@@ -80,6 +86,7 @@ public:
 
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 
@@ -96,6 +103,7 @@ public:
 
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 
@@ -108,12 +116,14 @@ public:
 
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class BreakStat : public Stat {
 public:
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class ReturnStat : public Stat {
@@ -125,11 +135,13 @@ public:
 
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class EmptyStat : public Stat {
     virtual void print(std::ostream &out, int indent) override;
     virtual void eval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class Exp {
@@ -137,6 +149,7 @@ public:
     virtual void print(std::ostream &out, int indent) {}
     virtual valp eval(InterpreterContext &c) = 0;
     virtual valp& leval(InterpreterContext &c) = 0;
+    virtual void codegen(CodeGenContext &c) {}
 };
 
 
@@ -145,6 +158,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 
@@ -158,6 +172,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class IntExp : public Exp {
@@ -170,6 +185,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class FloatExp : public Exp {
@@ -182,6 +198,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class StringExp : public Exp {
@@ -194,6 +211,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class IdExp : public Exp {
@@ -206,6 +224,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class FieldDef {
@@ -229,6 +248,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class ListExp : public Exp {
@@ -241,6 +261,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class RangeExp : public Exp {
@@ -254,6 +275,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class TupleExp : public Exp {
@@ -266,6 +288,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class FuncBody {
@@ -291,6 +314,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class MemberExp : public Exp {
@@ -305,6 +329,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class IndexExp : public Exp {
@@ -318,6 +343,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class CallExp : public Exp {
@@ -332,6 +358,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 enum class UnaryOp {Minus, Not};
@@ -348,6 +375,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 enum class BinOp {Pow, Mul, Div, Mod, Plus, Minus, Concat, Lteq, Lt, Gt, Gteq, Eq, Neq, And, Or};
@@ -365,6 +393,7 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };
 
 class TernaryExp : public Exp {
@@ -379,4 +408,5 @@ public:
     virtual void print(std::ostream &out, int indent) override;
     virtual valp eval(InterpreterContext &c) override;
     virtual valp& leval(InterpreterContext &c) override;
+    virtual void codegen(CodeGenContext &c) override;
 };

@@ -7,6 +7,7 @@
 #include "Printer.h"
 #include "Interpreter.h"
 #include "VirtualMachine.h"
+#include "Assembler.h"
 
 using namespace std;
 using namespace antlr4;
@@ -34,6 +35,7 @@ int main() {
     m.setSize(0x2000);
     int64_t n = 0x1000;
     int64_t i = 0x1001;
+    /*
     m.load({
         LoadS, 28472, // Init, 0
         Store, n,
@@ -54,14 +56,14 @@ int main() {
         LoadS, 76,
         Call, Printf,
 
-        LoadS, 2, // if n%2==1, 32
+        LoadS, 2, // if n%2==1
         LoadM, n,
         Modi, Noop,
         LoadS, 1,
         Eqi, Noop,
         IfJump, 52,
 
-        LoadS, 2, // n/2, 44
+        LoadS, 2, // n/2
         LoadM, n,
         Divi, Noop,
         Jump, 62,
@@ -82,6 +84,67 @@ int main() {
         End, Noop, // 74
         '%', 'd', '\n', '\0' // printf string, 76
     });
+    */
+
+    m.load(assemble(R"(
+        loads 28472
+        store n
+        loads 0
+        store i
+
+    loop:
+        loadm i
+        loads 100
+        gti
+        loads 1
+        loadm n
+        neqi
+        and
+        not
+        ifjump endp
+
+        loadm n
+        loads str
+        call printf
+
+        loads 2
+        loadm n
+        modi
+        loads 1
+        eqi 
+        ifjump cond1
+
+        loads 2
+        loadm n
+        divi
+        jump after
+
+    cond1:
+        loads 3
+        loadm n
+        muli
+        loads 1
+        addi
+
+    after:
+        store n
+        loads 1
+        loadm i
+        addi
+        store i
+        jump loop
+
+    endp:
+        end
+
+    str:
+        "%d\n"
+
+    )",
+    {
+        {"n", n},
+        {"i", i},
+    }));
 
     cout << "VM output : " << endl;
     m.run();

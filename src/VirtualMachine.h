@@ -1,6 +1,9 @@
 #pragma once
 
 #include <stack>
+#include <map>
+#include <vector>
+#include <iostream>
 
 enum Instruction {
     Noop = 0,
@@ -23,7 +26,6 @@ enum Instruction {
     Modi,
     Addi, Addf,
     Subi, Subf,
-    Concat,
     Lteqi, Lteqf,
     Lti, Ltf,
     Gti, Gtf,
@@ -38,15 +40,15 @@ enum ReservedFuncs {
     Printf,
 };
 
+using vmcode = std::vector<int64_t>;
+
 class VirtualMachine {
 public:
-    VirtualMachine(std::ostream &o) : out(o) {
-        stdlib[Printf] = &VirtualMachine::printf;
-    }
+    VirtualMachine(std::ostream &o) : out(o) {}
     void setSize(size_t size) {
         this->memory.resize(size);
     }
-    void load(std::vector<int64_t> program) {
+    void load(vmcode program) {
         auto size = memory.size();
         memory.assign(program.begin(), program.end());
         if (size > program.size()) {
@@ -234,9 +236,6 @@ public:
                 operandStack.pop();
                 operandStack.push(asint(a - b)); break;
             }
-            case Concat: {
-                break;
-            }
             case Lteqi: {
                 int64_t a=operandStack.top();
                 operandStack.pop();
@@ -341,9 +340,11 @@ private:
     uint64_t PC = 0;
     uint64_t RAM = 0;
     std::vector<int64_t> memory;
-    std::stack<uint64_t> operandStack;
+    std::stack<int64_t> operandStack;
     std::stack<uint64_t> addressStack;
-    std::map<int64_t, void (VirtualMachine::*)()> stdlib;
+    std::map<int64_t, void (VirtualMachine::*)()> stdlib = {
+        { Printf, &VirtualMachine::printf},
+    };
 
     std::ostream &out;
 
