@@ -27,14 +27,9 @@ int main() {
     printBlock(cout, 0, ast);
 
     cout << "Interpreter output : " << endl;
-    InterpreterContext ic(cout);
-    evalBlock(ic, ast);
+    interpret(cout, ast);
 
     VirtualMachine m(cout);
-
-    m.setSize(0x2000);
-    int64_t n = 0x1000;
-    int64_t i = 0x1001;
     /*
     m.load({
         LoadS, 28472, // Init, 0
@@ -87,11 +82,6 @@ int main() {
     */
 
     m.load(assemble(R"(
-        loads 28472
-        store n
-        loads 0
-        store i
-
     loop:
         loadm i
         loads 100
@@ -139,12 +129,11 @@ int main() {
 
     str:
         "%d\n"
+        
+    n: 28472
+    i: 0
 
-    )",
-    {
-        {"n", n},
-        {"i", i},
-    }));
+    )"));
 
     cout << "VM output : " << endl;
     m.run();

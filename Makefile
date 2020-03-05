@@ -14,7 +14,7 @@ GRAMMARFILES = $(patsubst %, %.g4, ${GRAMMARS})
 
 PARSER = $(patsubst %, %Parser, ${GRAMMARS}) $(patsubst %, %Lexer, ${GRAMMARS})
 
-SRC = main ASTGen Printer Interpreter Assembler CodeGen
+SRC = main ASTGen Printer VirtualMachine Assembler Interpreter #CodeGen
 OBJPATH = $(patsubst %, $(OBJDIR)/%.o, $(PARSER) $(SRC))
 
 MAIN = main

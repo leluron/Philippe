@@ -2,7 +2,7 @@ grammar Bytecode;
 
 code: instr* EOF;
 instr
-    : label? op
+    : label* op
     ;
 
 label: name ':';
@@ -12,6 +12,8 @@ op
     | opcode name
     | opcode
     | stringarray
+    | intl=intliteral
+    | floatl=floatliteral
     ;
 
 intliteral: INT | HEX;

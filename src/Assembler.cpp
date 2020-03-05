@@ -7,6 +7,8 @@
 using namespace std;
 using namespace antlr4;
 
+using addressmap = std::map<std::string, uint64_t>;
+
 addressmap stdlib = {
     {"printf", Printf}
 };
@@ -50,9 +52,25 @@ public:
         return nullptr;
     }
 
+    virtual antlrcpp::Any visitOpcode(BytecodeParser::OpcodeContext *ctx) override {
+        return ctx->o->getText();
+    }
+
     virtual antlrcpp::Any visitOp(BytecodeParser::OpContext *ctx) override {
         if (ctx->stringarray()) return visit(ctx->stringarray());
-        else a += 2;
+        else if (ctx->intl || ctx->floatl ) a += 1;
+        else {
+            string op = visit(ctx->opcode());
+            if (op == "loads"
+            || op == "loadm"
+            || op == "store"
+            || op == "alloc"
+            || op == "free"
+            || op == "call"
+            || op == "ifjump"
+            || op == "jump") a+=2;
+            else a+=1;
+        }
         return nullptr;
     }
 
@@ -68,14 +86,12 @@ private:
 
 class Assembler : BytecodeBaseVisitor {
 public:
-    vmcode run(std::string assembly, addressmap addresses) {
+    vmcode run(std::string assembly) {
         ANTLRInputStream input(assembly);
         BytecodeLexer lexer(&input);
         CommonTokenStream tokens(&lexer);
         BytecodeParser parser(&tokens);    
         BytecodeParser::CodeContext* tree = parser.code();
-
-        this->addresses = addresses;
 
         auto labels = LabelResolve().visitCode(tree).as<addressmap>();
         this->addresses.insert(labels.begin(), labels.end());
@@ -143,16 +159,25 @@ public:
             else if (op == "neqi") i0 = Neqi;
             else if (op == "neqf") i0 = Neqf;
             else if (op == "end") i0 = End;
-            int64_t i1 = Noop;
-            if (ctx->intliteral()) i1 = visit(ctx->intliteral());
-            else if (ctx->floatliteral()) i1 = visit(ctx->floatliteral());
-            else if (ctx->name()) i1 = addresses[visit(ctx->name())];
-
             code.push_back(i0);
-            code.push_back(i1);
+
+            if (i0 == LoadS || i0 == LoadM || i0 == Store || i0 == Alloc || i0 == Free || i0 == Call ||
+                i0 == IfJump || i0 == Jump) {
+                int64_t i1 = Noop;
+                if (ctx->intliteral()) i1 = visit(ctx->intliteral());
+                else if (ctx->floatliteral()) i1 = visit(ctx->floatliteral());
+                else if (ctx->name()) i1 = addresses[visit(ctx->name())];
+                else throw;
+                code.push_back(i1);
+            }
+
         } else if (ctx->stringarray()) {
             vector<int64_t> s = visit(ctx->stringarray());
             code.insert(code.end(), s.begin(), s.end());
+        } else if (ctx->intl) {
+            code.push_back(visit(ctx->intl).as<int64_t>());
+        } else if (ctx->floatl) {
+            code.push_back(visit(ctx->floatl).as<int64_t>());
         }
         return nullptr;
     }
@@ -191,6 +216,6 @@ public:
 
 };
 
-vmcode assemble(string assembly, addressmap addresses) {
-    return Assembler().run(assembly, addresses);
+vmcode assemble(string assembly) {
+    return Assembler().run(assembly);
 }

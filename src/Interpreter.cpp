@@ -1,306 +1,413 @@
-#include "AST.h"
 #include "Interpreter.h"
 
-void evalBlock(InterpreterContext &c, block b) {
-    for (auto s : b) {
-        s->eval(c);
-        if (c.broke || c.returned) break;
-    }
-}
+#include <map>
 
-void AssignStat::eval(InterpreterContext &c) {
-    auto r = right->eval(c);
-    if (left.size() > 1) {
-        if (r->kind() != ValueKind::Tuple) throw;
-        auto tu = dynamic_cast<TupleValue*>(r.get())->elements;
-        if (left.size() != tu.size()) throw;
-        for (int i=0;i<left.size();i++) {
-            left[i]->leval(c) = tu[i];
+using namespace std;
+
+enum class ValueKind {
+    Nil, Bool, Int, Float, String, Obj, List, Range, Tuple, Func, NativeFunc
+};
+
+class Value;
+using valp = shared_ptr<Value>;
+
+class Value {
+public:
+    virtual ~Value() {}
+    virtual valp unaryOp(UnaryOp op) {
+        throw "Unsupported unary op";
+    }
+    virtual valp binOp(BinOp op, valp right) {
+        throw "Unsupported binary op";
+    }
+};
+
+
+class NilValue : public Value {
+public:
+    
+};
+
+class BoolValue : public Value {
+public:
+    BoolValue(bool val) : val(val) {}
+    bool val;
+    
+    virtual valp unaryOp(UnaryOp op) override {
+        if (op == UnaryOp::Not) {
+            return valp(new BoolValue(!val));
         }
-    } else {
-        left[0]->leval(c) = r;
+        throw "Unsupported bool operation";
     }
-}
-
-void FuncCallStat::eval(InterpreterContext &c) {
-    CallExp(func, args).eval(c);
-}
-
-void WhileStat::eval(InterpreterContext &c) {
-    while (true) {
-        auto v = cond->eval(c);
-        if (v->kind() != ValueKind::Bool) throw "While condition must be a bool";
-        if (!dynamic_cast<BoolValue*>(v.get())->val) return;
-        body->eval(c);
-        if (c.broke || c.returned) break;
+    virtual valp binOp(BinOp op, valp right) override {
+        if (auto v0 = dynamic_pointer_cast<BoolValue>(right)) {
+            auto v1 = v0->val;
+            if (op == BinOp::Eq) return valp(new BoolValue(val == v1));
+            else if (op == BinOp::Neq) return valp(new BoolValue(val != v1));
+            else if (op == BinOp::And) return valp(new BoolValue(val && v1));
+            else if (op == BinOp::Or) return valp(new BoolValue(val || v1));
+            else throw "Unsupported bool operation";
+        } else throw "Unsupported bool operation";
     }
-}
-
-void IfStat::eval(InterpreterContext &c) {
-    auto v = cond->eval(c);
-    if (v->kind() != ValueKind::Bool) throw "While condition must be a bool";
-    if (dynamic_cast<BoolValue*>(v.get())->val) 
-        thenbody->eval(c);
-    else
-        elsebody->eval(c);
-}
-
-void ForStat::eval(InterpreterContext &c) {
-    auto l = list->eval(c);
-    if (l->kind() == ValueKind::List) {
-        for (auto i : dynamic_cast<ListValue*>(l.get())->elements) {
-            c.newFrame();
-            c.add(name, i);
-            body->eval(c);
-            c.popFrame();
-            c.broke = false;
-        }
-    } else if (l->kind() == ValueKind::Range) {
-        auto r = dynamic_cast<RangeValue*>(l.get());
-        for (auto i=r->beg.val;i<r->end.val;i++) {
-            c.newFrame();
-            c.add(name, valp(new IntValue(i)));
-            body->eval(c);
-            c.popFrame();
-            c.broke = false;
-        }
-    } else throw;
-
-}
-
-void BlockStat::eval(InterpreterContext &c) {
-    evalBlock(c, stats);
-}
-
-void BreakStat::eval(InterpreterContext &c) {
-    c.broke = true;
-}
-
-void ReturnStat::eval(InterpreterContext &c) {
-    c.returned = true;
-    c.returnval = ret->eval(c);
-}
-
-void EmptyStat::eval(InterpreterContext &c) {}
-
-valp NilExp::eval(InterpreterContext &c) {
-    return valp(new NilValue());
-}
-
-valp BoolExp::eval(InterpreterContext &c) {
-    return valp(new BoolValue(val));
-}
-
-valp IntExp::eval(InterpreterContext &c) {
-    return valp(new IntValue(val));
-}
-
-valp FloatExp::eval(InterpreterContext &c) {
-    return valp(new FloatValue(val));
-}
-
-valp StringExp::eval(InterpreterContext &c) {
-    return valp(new StringValue(val));
-}
-
-valp IdExp::eval(InterpreterContext &c) {
-    return c.get(name);
-}
-
-valp ObjExp::eval(InterpreterContext &c) {
-    auto o = new ObjValue();
-    for (auto f : fields) {
-        o->add(f.name, f.e->eval(c));
+};
+class IntValue : public Value {
+public:
+    IntValue(long val) : val(val) {}
+    long val;
+    
+    virtual valp unaryOp(UnaryOp op) override {
+        if (op == UnaryOp::Minus)
+            return valp(new IntValue(-val));
+        throw "Unsupported int operation";
     }
-    return valp(o);
-}
-
-valp ListExp::eval(InterpreterContext &c) {
-    auto l = new ListValue();
-    for (auto e : elements) {
-        l->add(e->eval(c));
-    }
-    return valp(l);
-}
-
-valp RangeExp::eval(InterpreterContext &c) {
-    auto beg = begin->eval(c);
-    auto end0 = end->eval(c);
-
-    if (beg->kind() != ValueKind::Int || 
-        end0->kind() != ValueKind::Int)
+    virtual valp binOp(BinOp op, valp right) override;
+};
+class FloatValue : public Value {
+public:
+    FloatValue(double val) : val(val) {}
+    FloatValue(IntValue v) : val(v.val) {}
+    double val;
+    
+    virtual valp unaryOp(UnaryOp op) override {
+        if (op == UnaryOp::Minus)
+            return valp(new FloatValue(-val));
         throw;
-
-    return valp(new RangeValue(
-        *dynamic_cast<IntValue*>(beg.get()),
-        *dynamic_cast<IntValue*>(end0.get())
-        ));
-}
-
-valp TupleExp::eval(InterpreterContext &c) {
-    auto el = std::vector<valp>();
-    for (auto e : elements) {
-        el.push_back(e->eval(c));
     }
-    return valp(new TupleValue(el));
-}
-
-valp FuncExp::eval(InterpreterContext &c) {
-    return valp(new FuncValue(*this));
-}
-
-valp MemberExp::eval(InterpreterContext &c) {
-    auto l = left->eval(c);
-
-    if (l->kind() != ValueKind::Obj) throw;
-
-    return dynamic_cast<ObjValue*>(l.get())->get(name);
-}
-
-valp IndexExp::eval(InterpreterContext &c) {
-    auto l = left->eval(c);
-    auto ind = index->eval(c);
-
-    if (ind->kind() != ValueKind::Int) throw;
-
-    int ind0 = dynamic_cast<IntValue*>(ind.get())->val;
-
-    if (l->kind() == ValueKind::List)
-        return dynamic_cast<ListValue*>(l.get())->get(ind0);
-    else if (l->kind() == ValueKind::Tuple)
-        return dynamic_cast<TupleValue*>(l.get())->get(ind0);
-    else throw;
-}
-
-valp CallExp::eval(InterpreterContext &c) {
-    auto f = func->eval(c);
-
-    if (f->kind() == ValueKind::Func) {
-        auto f0 = dynamic_cast<FuncValue*>(f.get())->func;
-
-        c.newFrame();
-        
-        for (int i=0;i<args.size();i++) {
-            c.add(f0.args[i], args[i]->eval(c));
+    virtual valp binOp(BinOp op, valp right) override;
+};
+class StringValue : public Value {
+public:
+    StringValue(string val) : val(val) {}
+    string val;
+    
+    virtual valp binOp(BinOp op, valp right) override {
+        if (op == BinOp::Concat) { 
+            if (auto r0 = dynamic_pointer_cast<StringValue>(right)) {
+                auto r = r0->val;
+                return valp(new StringValue(val + r));
+            }
         }
-
-        evalBlock(c, f0.body.stats);
-        if (c.returned) {
-            c.returned = false;
-            return c.returnval;
+        throw;
+    }
+};
+class ObjValue : public Value {
+public:
+    ObjValue() {}
+    void add(string name, valp val) {
+        fields[name] = val;
+    }
+    valp& get(string name) {
+        auto f = fields.find(name);
+        if (f == fields.end()) throw "test";
+        return f->second;
+    }
+    map<string, valp> fields;
+    
+};
+class ListValue : public Value {
+public:
+    ListValue(vector<valp> e) : elements(e) {}
+    void add(valp e) {
+        if (elements.size()==0) elements.push_back(e);
+        else {
+            if (typeid(e) == typeid(elements[0]))
+                elements.push_back(e);
+            else throw;
         }
+    }
+    ListValue() {}
+    valp& get(int index) {
+        if (index >= elements.size()) throw;
+        return elements[index];
+    }
+    int size() { return elements.size(); }
+    vector<valp> elements;
+    
+};
+class RangeValue : public Value {
+public:
+    RangeValue(IntValue beg, IntValue end) : beg(beg), end(end) {}
+    IntValue beg, end;
+    
+};
+class TupleValue : public Value {
+public:
+    TupleValue(vector<valp> e) : elements(e) {}
+    valp& get(int index) {
+        if (index >= elements.size()) throw;
+        return elements[index];
+    }
+    vector<valp> elements;
+    
+};
+class FuncValue : public Value {
+public:
+    FuncValue(FuncExp f) : func(f) {}
+    FuncExp func;
+    
+};
 
-        auto ret = f0.body.ret->eval(c);
-        c.popFrame();
-        return ret;
-    } else if (f->kind() == ValueKind::NativeFunc) {
-        auto f0 = dynamic_cast<NativeFuncValue*>(f.get());
-        std::vector<valp> argsv;
-        for (int i=0;i<args.size();i++) {
-            argsv.push_back(args[i]->eval(c));
+class InterpreterContext;
+
+class NativeFuncValue : public Value {
+public:
+    virtual valp exec(InterpreterContext &c, vector<valp> args)=0;
+};
+
+class NativePrint : public NativeFuncValue {
+public:
+    virtual valp exec(InterpreterContext &c, vector<valp> args) override;
+};
+
+class StdLib : public ObjValue {
+public:
+    StdLib();
+};
+
+
+class InterpreterContext {
+public:
+    InterpreterContext(ostream &out) : out(out) {
+        vars.push_back(StdLib());
+    }
+    void evalBlock(block b);
+    valp eval(expp eb);
+    valp& leval(expp eb);
+    void eval(statp sb);
+    valp& get(string name) {
+        for (int i=vars.size()-1;i>=0;i--) {
+            try {
+                return vars[i].get(name);
+            } catch (...) {
+                continue;
+            }
         }
-        return f0->exec(c, argsv);
-    } else throw "Unsupported type for calling";
+        throw;
+    }
+    valp& getLeftValue(string name) {
+        for (int i=vars.size()-1;i>=0;i--) {
+            try {
+                return vars[i].get(name);
+            } catch (...) {
+                continue;
+            }
+        }
+        vars.back().add(name, valp(new NilValue()));
+        return vars.back().get(name);
+    }
+    void newFrame() {
+        vars.push_back(ObjValue());
+    }
+    void popFrame() {
+        vars.pop_back();
+    }
+    void add(string name, valp val) {
+        vars.back().add(name, val);
+    }
+
+    ostream &out;
+    vector<ObjValue> vars;
+    bool broke = false;
+    bool returned = false;
+    valp returnval = nullptr;
+};
+
+void InterpreterContext::evalBlock(block b) {
+    for (auto s : b) {
+        eval(s);
+        if (broke || returned) break;
+    }
 }
 
-valp UnaryOpExp::eval(InterpreterContext &c) {
-    auto a = e->eval(c);
-    return a->unaryOp(op);
+void InterpreterContext::eval(statp sb) {
+    if (auto s = dynamic_pointer_cast<AssignStat>(sb)) {
+        auto r = eval(s->right);
+        if (s->left.size() > 1) {
+            if (auto tu0 = dynamic_pointer_cast<TupleValue>(r)) {
+                auto tu = tu0->elements;
+                if (s->left.size() != tu.size()) throw;
+                for (int i=0;i<s->left.size();i++) {
+                    leval(s->left[i]) = tu[i];
+                }
+            }
+        } else {
+            leval(s->left[0]) = r;
+        }
+    } else if (auto s = dynamic_pointer_cast<FuncCallStat>(sb)) {
+        eval(expp(new CallExp(s->func, s->args)));
+    } else if (auto s = dynamic_pointer_cast<WhileStat>(sb)) {
+        while (true) {
+            auto v = eval(s->cond);
+            if (auto v0 = dynamic_pointer_cast<BoolValue>(v)) {
+                if (!v0->val) return;
+                eval(s->body);
+                if (broke || returned) {
+                    broke = false;
+                    break;
+                }
+            } else throw "While condition must be a bool";
+        } 
+    } else if (auto s = dynamic_pointer_cast<IfStat>(sb)) {
+        auto v = eval(s->cond);
+        if (auto v0 = dynamic_pointer_cast<BoolValue>(v)) {
+            if (v0->val) 
+                eval(s->thenbody);
+            else
+                eval(s->elsebody);
+        } throw "If condition must be a bool";
+    } else if (auto s = dynamic_pointer_cast<ForStat>(sb)) {
+        auto l = eval(s->list);
+        if (auto l0 = dynamic_pointer_cast<ListValue>(l)) {
+            for (auto i : l0->elements) {
+                newFrame();
+                add(s->name, i);
+                eval(s->body);
+                popFrame();
+                broke = false;
+            }
+        } else if (auto r = dynamic_pointer_cast<RangeValue>(l)) {
+            for (auto i=r->beg.val;i<r->end.val;i++) {
+                newFrame();
+                add(s->name, valp(new IntValue(i)));
+                eval(s->body);
+                popFrame();
+                broke = false;
+            }
+        } else throw;
+    } else if (auto s = dynamic_pointer_cast<BlockStat>(sb)) {
+        evalBlock(s->stats);
+    } else if (auto s = dynamic_pointer_cast<BreakStat>(sb)) {
+        broke = true;
+    } else if (auto s = dynamic_pointer_cast<ReturnStat>(sb)) {
+        returned = true;
+        returnval = eval(s->ret);
+    }
 }
 
-valp BinOpExp::eval(InterpreterContext &c) {
-    auto l = left->eval(c);
-    auto r = right->eval(c);
-    return l->binOp(op, r);
-}
+valp InterpreterContext::eval(expp eb) {
+    if (auto e = dynamic_pointer_cast<NilExp>(eb)) {
+        return valp(new NilValue());
+    } else if (auto e = dynamic_pointer_cast<BoolExp>(eb)) {
+        return valp(new BoolValue(e->val));
+    } else if (auto e = dynamic_pointer_cast<IntExp>(eb)) {
+        return valp(new IntValue(e->val));
+    } else if (auto e = dynamic_pointer_cast<FloatExp>(eb)) {
+        return valp(new FloatValue(e->val));
+    } else if (auto e = dynamic_pointer_cast<StringExp>(eb)) {
+        return valp(new StringValue(e->val));
+    } else if (auto e = dynamic_pointer_cast<IdExp>(eb)) {
+        return get(e->name);
+    } else if (auto e = dynamic_pointer_cast<ObjExp>(eb)) {
+        auto o = new ObjValue();
+        for (auto f : e->fields) {
+            o->add(f.name, eval(f.e));
+        }
+        return valp(o);
+    } else if (auto e = dynamic_pointer_cast<ListExp>(eb)) {
+        auto l = new ListValue();
+        for (auto el : e->elements) {
+            l->add(eval(el));
+        }
+        return valp(l);
+    } else if (auto e = dynamic_pointer_cast<RangeExp>(eb)) {
+        auto beg = eval(e->begin);
+        auto end0 = eval(e->end);
 
-valp TernaryExp::eval(InterpreterContext &c) {
-    auto co = cond->eval(c);
-    if (co->kind() != ValueKind::Bool) throw;
+        auto b1 = dynamic_pointer_cast<IntValue>(beg);
+        auto e1 = dynamic_pointer_cast<IntValue>(end0);
 
-    auto c0 = dynamic_cast<BoolValue*>(co.get())->val;
+        if (!b1 || !e1)
+            throw;
 
-    if (c0) return then->eval(c);
-    else return els->eval(c);
-}
+        return valp(new RangeValue(*b1,*e1));
+    } else if (auto e = dynamic_pointer_cast<TupleExp>(eb)) {
+        auto l = vector<valp>();
+        for (auto el : e->elements) {
+            l.push_back(eval(el));
+        }
+        return valp(new TupleValue(l));
+    } else if (auto e = dynamic_pointer_cast<FuncExp>(eb)) {
+        return valp(new FuncValue(*e));
+    } else if (auto e = dynamic_pointer_cast<MemberExp>(eb)) {
+        auto l = eval(e->left);
 
-valp& NilExp::leval(InterpreterContext &c) {
+        if (auto o = dynamic_pointer_cast<ObjValue>(l))
+            return o->get(e->name);
+        else throw;
+    } else if (auto e = dynamic_pointer_cast<IndexExp>(eb)) {
+        auto l = eval(e->left);
+        auto ind = eval(e->index);
+
+        if (auto ind1 = dynamic_pointer_cast<IntValue>(ind)) {
+            int ind0 = ind1->val;
+
+            if (auto l0 = dynamic_pointer_cast<ListValue>(l))
+                return l0->get(ind0);
+            else if (auto l0 = dynamic_pointer_cast<TupleValue>(l))
+                return l0->get(ind0);
+            else throw;
+        }
+    } else if (auto e = dynamic_pointer_cast<CallExp>(eb)) {
+        auto f = eval(e->func);
+
+        if (auto f1 = dynamic_pointer_cast<FuncValue>(f)) {
+            auto f0 = f1->func;
+
+            newFrame();
+            
+            for (int i=0;i<e->args.size();i++) {
+                add(f0.args[i], eval(e->args[i]));
+            }
+
+            evalBlock(f0.body.stats);
+            if (returned) {
+                returned = false;
+                return returnval;
+            }
+
+            auto ret = eval(f0.body.ret);
+            popFrame();
+            return ret;
+        } else if (auto f0 = dynamic_pointer_cast<NativeFuncValue>(f)) {
+            vector<valp> argsv;
+            for (int i=0;i<e->args.size();i++) {
+                argsv.push_back(eval(e->args[i]));
+            }
+            return f0->exec(*this, argsv);
+        } else throw "Unsupported type for calling";
+    } else if (auto e = dynamic_pointer_cast<UnaryOpExp>(eb)) {
+        auto a = eval(e->e);
+        return a->unaryOp(e->op);
+    } else if (auto e = dynamic_pointer_cast<BinOpExp>(eb)) {
+        auto l = eval(e->left);
+        auto r = eval(e->right);
+        return l->binOp(e->op, r);
+    } else if (auto e = dynamic_pointer_cast<TernaryExp>(eb)) {
+        auto co = eval(e->cond);
+        if (auto c1 = dynamic_pointer_cast<BoolValue>(co)) {
+            if (c1->val) return eval(e->then);
+            else return eval(e->els);
+        } else throw;
+    }
     throw;
 }
 
-valp& BoolExp::leval(InterpreterContext &c) {
-    throw;
+valp& InterpreterContext::leval(expp eb) {
+    if (auto e = dynamic_pointer_cast<IdExp>(eb)) {
+        return getLeftValue(e->name);
+    } else if (auto e = dynamic_pointer_cast<TernaryExp>(eb)) {
+        auto co = eval(e->cond);
+        if (auto c1 = dynamic_pointer_cast<BoolValue>(co)) {
+            if (c1->val) return leval(e->then);
+            else return leval(e->els);
+        } else throw;
+    } else throw;
 }
 
-valp& IntExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& FloatExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& StringExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& IdExp::leval(InterpreterContext &c) {
-    return c.getLeftValue(name);
-}
-
-valp& ObjExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& ListExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& RangeExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& TupleExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& FuncExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& MemberExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& IndexExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& CallExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& UnaryOpExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& BinOpExp::leval(InterpreterContext &c) {
-    throw;
-}
-
-valp& TernaryExp::leval(InterpreterContext &c) {
-    auto co = cond->eval(c);
-    if (co->kind() != ValueKind::Bool) throw;
-
-    auto c0 = dynamic_cast<BoolValue*>(co.get())->val;
-
-    if (c0) return then->leval(c);
-    else return els->leval(c);
-}
 
 valp IntValue::binOp(BinOp op, valp right) {
-    if (right->kind() == ValueKind::Int) {
-        auto v1 = dynamic_cast<IntValue*>(right.get())->val; 
+    if (auto v0 = dynamic_pointer_cast<IntValue>(right)) {
+        auto v1 = v0->val; 
         if (op == BinOp::Pow) {
             long l = 1;
             for (int i=0;i<v1;i++) l *= val;
@@ -328,14 +435,14 @@ valp IntValue::binOp(BinOp op, valp right) {
         } else if (op == BinOp::Neq) {
             return valp(new BoolValue(val!=v1));
         } else throw "Unsupported int operation";
-    } else if (right->kind() == ValueKind::Float) {
-        return FloatValue(*this).binOp(op, right);
+    } else if (auto v0 = dynamic_pointer_cast<FloatValue>(right)) {
+        return FloatValue(*this).binOp(op, v0);
     } else throw "Unsupported int operation";
 }
 
 valp FloatValue::binOp(BinOp op, valp right) {
-    if (right->kind() == ValueKind::Float) {
-        auto v1 = dynamic_cast<FloatValue*>(right.get())->val; 
+    if (auto v0 = dynamic_pointer_cast<FloatValue>(right)) {
+        auto v1 = v0->val; 
         if (op == BinOp::Pow) {
             double l = 1.0;
             for (int i=0;i<(long)v1;i++) l *= val;
@@ -361,32 +468,60 @@ valp FloatValue::binOp(BinOp op, valp right) {
         } else if (op == BinOp::Neq) {
             return valp(new BoolValue(val!=v1));
         } else throw "Unsupported float operation";
-    } else if (right->kind() == ValueKind::Int) {
-        return binOp(op, valp(new FloatValue(*dynamic_cast<IntValue*>(right.get()))));
+    } else if (auto v0 = dynamic_pointer_cast<IntValue>(right)) {
+        return binOp(op, valp(new FloatValue(*v0)));
     } else throw "Unsupported float operation";
 }
 
-valp NativePrint::exec(InterpreterContext &c, std::vector<valp> args) {
-    if (args.size() != 1) throw;
-    auto arg = args[0];
-    if (arg->kind() == ValueKind::String) {
-        auto str = dynamic_cast<StringValue*>(arg.get())->val;
-        c.out << str << std::endl;
-    } else if (arg->kind() == ValueKind::Int) {
-        auto str = dynamic_cast<IntValue*>(arg.get())->val;
-        c.out << str << std::endl;
-    } else if (arg->kind() == ValueKind::Float) {
-        auto str = dynamic_cast<FloatValue*>(arg.get())->val;
-        c.out << str << std::endl;
-    } else if (arg->kind() == ValueKind::Bool) {
-        auto str = dynamic_cast<BoolValue*>(arg.get())->val;
-        c.out << (str?"true":"false") << std::endl;
+void printval(ostream &out, valp arg) {
+    if (auto a = dynamic_pointer_cast<IntValue>(arg)) {
+        out << a->val;
+    } else if (auto a = dynamic_pointer_cast<FloatValue>(arg)) {
+        out << a->val;
+    } else if (auto a = dynamic_pointer_cast<BoolValue>(arg)) {
+        out << ((a->val)?"true":"false");
     } else {
         throw "Unsupported type for printing";
     }
+}
+
+valp NativePrint::exec(InterpreterContext &co, vector<valp> args) {
+    if (args.size() < 1) throw;
+    auto arg = args[0];
+    if (auto a = dynamic_pointer_cast<StringValue>(arg)) {
+        auto str = a->val;
+        int argi = 1;
+
+        for (int i=0;i<str.size();i++) {
+            char c = str[i];
+            if (c == '\\') {
+                i++;
+                char c1 = str[i];
+                if (c1 == '0') break;
+                else if (c1 == 'n') co.out << endl;
+            }
+            else if (c == '%') {
+                i++;
+                char c1 = str[i];
+                if (c1 == 'd' || c1 == 'i') {
+                    printval(co.out, args[argi]);
+                } else if (c1 == 'f' || c1 == 'g') {
+                    printval(co.out, args[argi]);
+                }
+                argi++;
+            } else {
+                co.out << c;
+            }
+        }
+    } 
     return valp(new NilValue());
 }
 
 StdLib::StdLib() {
-    add("println", valp(new NativePrint()));
+    add("printf", valp(new NativePrint()));
+}
+
+void interpret(ostream &out, block b) {
+    InterpreterContext ic(out);
+    ic.evalBlock(b);
 }

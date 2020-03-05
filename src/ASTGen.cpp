@@ -172,7 +172,8 @@ antlrcpp::Any ASTGen::visitFalseexp(PhilippeParser::FalseexpContext *ctx) {
 }
 
 antlrcpp::Any ASTGen::visitStringexp(PhilippeParser::StringexpContext *ctx) {
-    return expp(new StringExp(ctx->STRING()->getText()));
+    auto str = ctx->STRING()->getText();
+    return expp(new StringExp(str.substr(1, str.length()-2)));
 }
 
 antlrcpp::Any ASTGen::visitTernaryexp(PhilippeParser::TernaryexpContext *ctx) {
