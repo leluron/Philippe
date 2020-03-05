@@ -156,7 +156,7 @@ void print(ostream &out, expp eb) {
     } else if (auto e = dynamic_pointer_cast<UnaryOpExp>(eb)) {
         out << "(";
         if (e->op == UnaryOp::Minus) out << "-";
-        else if (e->op == UnaryOp::Not) out << "not";
+        else if (e->op == UnaryOp::Not) out << " not ";
         print(out, e->e);
         out << ")";
         
@@ -166,13 +166,13 @@ void print(ostream &out, expp eb) {
         if (e->op == BinOp::Mul) out << "*";
         else if (e->op == BinOp::Div) out << "/";
         else if (e->op == BinOp::Mod) out << "%";
-        else if (e->op == BinOp::Plus) out << "+";
-        else if (e->op == BinOp::Minus) out << "-";
-        else if (e->op == BinOp::Lteq) out << "<=";
-        else if (e->op == BinOp::Lt) out << "<";
-        else if (e->op == BinOp::Eq) out << "==";
-        else if (e->op == BinOp::And) out << "and";
-        else if (e->op == BinOp::Or) out << "or";
+        else if (e->op == BinOp::Plus) out << " + ";
+        else if (e->op == BinOp::Minus) out << " - ";
+        else if (e->op == BinOp::Lteq) out << " <= ";
+        else if (e->op == BinOp::Lt) out << " < ";
+        else if (e->op == BinOp::Eq) out << " == ";
+        else if (e->op == BinOp::And) out << " and ";
+        else if (e->op == BinOp::Or) out << " or ";
         print(out, e->right);
         out << ")";
         

@@ -2,9 +2,7 @@
 
 using namespace std;
 
-typep infer(expp e) {
-    return typep(new TypeNil());
-}
+typep infer(expp e);
 
 File ASTGen::gen(PhilippeParser::FileContext *ctx) {
     return visit(ctx);
@@ -23,7 +21,6 @@ antlrcpp::Any ASTGen::visitGlobaldef(PhilippeParser::GlobaldefContext *ctx) {
 
     typep t = nullptr;
     if (ctx->type()) t = visit(ctx->type());
-    else t = infer(value);
 
     return defp(new GlobalDef(
         ctx->ID()->getText(),
@@ -95,13 +92,12 @@ antlrcpp::Any ASTGen::visitStdassign(PhilippeParser::StdassignContext *ctx) {
     if (ctx->lexpopttype().size() == 1) {
         lexpp lexp = visit(ctx->lexpopttype(0));
         return statp(new AssignStat(lexp, visit(ctx->exp())));
-    } else if (auto tu = dynamic_pointer_cast<TypeTuple>(t)) {
+    } else {
         block out;
         auto tmp = newtmp();
         out.push_back(statp(new AssignStat(lexpp(new Lexp(tmp, {}, infer(e))), e)));
         for (int i=0;i<ctx->lexpopttype().size();i++) {
             lexpp lexp = visit(ctx->lexpopttype(i));
-            lexp->type = tu->t[i];
             out.push_back(statp(new AssignStat(
                 lexp, 
                 expp(
@@ -114,7 +110,6 @@ antlrcpp::Any ASTGen::visitStdassign(PhilippeParser::StdassignContext *ctx) {
         }
         return statp(new BlockStat(out));
     }
-    throw "invalid";
 }
 
 expp toRvalue(lexpp l) {
