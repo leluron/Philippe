@@ -4,8 +4,11 @@
 #include "parser/PhilippeParser.h"
 #include "parser/PhilippeLexer.h"
 #include "ASTGen.h"
+
 #include "Printer.h"
+/*
 #include "Interpreter.h"
+*/
 #include "VirtualMachine.h"
 #include "Assembler.h"
 
@@ -19,15 +22,17 @@ int main() {
     PhilippeLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
     PhilippeParser parser(&tokens);    
-    PhilippeParser::ChunkContext* tree = parser.chunk();
+    PhilippeParser::FileContext* tree = parser.file();
 
     ASTGen gen;
     auto ast = gen.gen(tree);
 
-    printBlock(cout, 0, ast);
+    print(cout, ast);
 
+    /*
     cout << "Interpreter output : " << endl;
     interpret(cout, ast);
+    */
 
     VirtualMachine m(cout);
     /*

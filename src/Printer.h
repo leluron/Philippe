@@ -2,4 +2,4 @@
 
 #include "AST.h"
 
-void printBlock(std::ostream &out, int indent, block b);
+void print(std::ostream &out, File f);

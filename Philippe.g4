@@ -1,71 +1,92 @@
 grammar Philippe;
 
-chunk: block EOF;
-block: stat*;
+file: def* EOF;
+
+def
+  : ID (':' type)? '=' exp #globaldef
+  | ID '=' 'function' ('(' (arg (',' arg)*)? ')')? ('->' type)? '{' stat* '}' #functiondef
+  | 'type' ID '=' type #aliasdef
+  | 'type' ID '=' '{' arg+ '}' #objdef
+  ;
+
 stat
-  : assignment    #assignstat
-  | functioncall  #funccallstat
-  | while_stat    #whilestat
-  | if_stat       #ifstat
-  | for_stat      #forstat
-  | '{' block '}' #blockstat
+  : lexpopttype (',' lexpopttype)* '=' exp                 #stdassign
+  | lexpopttype op=('+=' | '-=' | '*=' | '/=') exp  #compoundassign
+  | lexp '(' explist? ')'  #funccall
+  | 'while' exp stat    #whilestat
+  | 'if' exp stat ('elseif' exp stat)* ('else' els=stat)?       #ifstat
+  | 'for' ID 'in' forexp stat      #forstat
+  | '{' stat* '}' #blockstat
   | 'break'       #breakstat
   | 'return' exp? #returnstat
   ;
 
-assignment
-  : explist '=' exp                         #stdassign
-  | exp op=('+=' | '-=' | '*=' | '/=') exp  #compoundassign
+forexp
+  : exp
+  | '[' exp '..' exp ']'
   ;
-functioncall: exp '(' explist? ')';
-while_stat: 'while' exp stat;
-if_stat: 'if' exp stat ('elseif' exp stat)* ('else' els=stat)?;
-for_stat: 'for' ID 'in' exp stat;
+
+arg: ID ':' type;
+type
+  : compositetype
+  | basictype
+  ;
+basictype
+  : t=('int'
+  | 'float'
+  | 'bool'
+  | 'string'
+  | 'nil') #primitivetype
+  | '(' typeaux (',' typeaux)+ ')' #tupletype
+  | ID #objaliastype
+  ;
+compositetype
+  : 'function' typeaux* ('->' ret=typeaux)? #functype
+  | 'list ' typeaux #listtype
+  ;
+typeaux
+  : basictype
+  | '(' compositetype ')'
+  ;
+
+
+lexp : ID lexpsuffix*;
+lexpopttype : lexp (':' type)?;
+
+lexpsuffix
+  : '[' exp ']'
+  | '.' ID
+  ;
 
 exp
   : 'nil'                             #nilexp
   | 'true'                            #trueexp
   | 'false'                           #falseexp
-  | intliteral                        #intexp
-  | floatliteral                      #floatexp
+  | (INT | HEX)                       #intexp
+  | FLOAT                             #floatexp
   | STRING                            #stringexp
+  | ID '{' fielddef+ '}'              #objexp
   | ID                                #idexp
-  | objdef                            #objdefexp
-  | listdef                           #listdefexp
-  | rangedef                          #rangedefexp
-  | tupledef                          #tupledefexp
-  | funcdef                           #funcdefexp
+  | '[' explist? ']'                  #listexp              
+  | '(' exp (',' exp)+ ')'            #tupleexp
   | exp '.' ID                        #memberexp
   | exp '[' exp ']'                   #indexexp
-  | exp '(' explist? ')'              #funccallexp
-  | op=('-' | 'not') exp                 #unaryexp
-  | <assoc=right> exp '^' exp         #exponentexp
-  | exp op=('*' | '/' | '%') exp         #multiplicativeexp
-  | exp op=('+' | '-') exp               #additiveexp
-  | <assoc=right> exp '..' exp        #strcatexp
+  | lexp '(' explist? ')'              #funccallexp
+  | op=('-' | 'not') exp              #unaryexp
+  | exp op=('*' | '/' | '%') exp      #multiplicativeexp
+  | exp op=('+' | '-') exp            #additiveexp
   | exp op=('<=' | '<' | '>' | '>=') exp #relationexp
   | exp op=('==' | '!=' ) exp            #comparisonexp
   | exp 'and' exp                     #andexp
   | exp 'or' exp                      #orexp
   | exp 'if' exp 'else' exp           #ternaryexp
+  | exp 'as' type                     #castexp
   | '(' exp ')'                       #parenexp
   ;
 
-
-objdef: '{' fielddef* '}';
 fielddef: ID '=' exp;
-listdef: '[' explist? ']';
 explist: exp (',' exp)*;
-rangedef: '[' exp '..' exp ']';
-tupledef: '(' tupleelements ')';
-tupleelements: exp (',' exp)+;
-funcdef: 'function' '(' arglist? ')' funcbody;
-arglist: ID (',' ID)*;
-funcbody: '{' block retstat? '}' | retstat?;
-retstat: ('return')? exp;
 
-intliteral : (INT | HEX);
-floatliteral : FLOAT;
 
 ID
     : [a-zA-Z_] [a-zA-Z_0-9]*

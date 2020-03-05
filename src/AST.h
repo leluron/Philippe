@@ -6,14 +6,69 @@
 
 class Exp;
 class Stat;
+class Lexp;
+class Type;
+class Def;
 
 using expp = std::shared_ptr<Exp>;
 using expl = std::vector<expp>;
 using statp = std::shared_ptr<Stat>;
 using block = std::vector<statp>;
 
+using lexpp = std::shared_ptr<Lexp>;
+using typep = std::shared_ptr<Type>;
+using defp = std::shared_ptr<Def>;
+
 using id = std::string;
 using arglist = std::vector<id>;
+
+class File {
+public:
+    std::vector<defp> defs;
+};
+
+class Def {
+public:
+    virtual ~Def() {}
+};
+
+class GlobalDef : public Def {
+public:
+    GlobalDef(std::string name, typep type, expp value) : name(name), type(type), value(value) {}
+    std::string name;
+    typep type;
+    expp value;
+};
+
+struct Arg {
+    std::string name;
+    typep type;
+};
+
+class FunctionDef : public Def {
+public:
+    FunctionDef(std::string name, std::vector<Arg> args,
+        typep ret, block body) : name(name), args(args),
+        ret(ret), body(body) {}
+    std::string name;
+    std::vector<Arg> args;
+    typep ret;
+    block body;
+};
+
+class AliasDef : public Def {
+public:
+    AliasDef(std::string name, typep t) : name(name), t(t) {}
+    std::string name;
+    typep t;
+};
+
+class ObjDef : public Def {
+public:
+    ObjDef(std::string name, std::vector<Arg> fields) : name(name), fields(fields) {}
+    std::string name;
+    std::vector<Arg> fields;
+};
 
 class Stat {
 public:
@@ -24,11 +79,11 @@ public:
 class AssignStat : public Stat {
 public:
     
-    AssignStat(expl left, expp right) {
+    AssignStat(lexpp left, expp right) {
         this->left = left;
         this->right = right;
     }
-    expl left;
+    lexpp left;
     expp right;
 };
 
@@ -36,11 +91,11 @@ public:
 class FuncCallStat : public Stat {
 public:
     
-    FuncCallStat(expp func, expl args) {
+    FuncCallStat(lexpp func, expl args) {
         this->func = func;
         this->args = args;
     }
-    expp func;
+    lexpp func;
     expl args;
 };
 
@@ -72,22 +127,6 @@ public:
 
 };
 
-
-class ForStat : public Stat {
-public:
-    
-    ForStat(id name, expp list, statp body) {
-        this->name = name;
-        this->list = list;
-        this->body = body;
-    }
-    id name;
-    expp list;
-    statp body;
-
-};
-
-
 class BlockStat : public Stat {
 public:
     
@@ -111,10 +150,6 @@ public:
     }
     expp ret;
 
-};
-
-class EmptyStat : public Stat {
-    
 };
 
 class Exp {
@@ -194,9 +229,10 @@ public:
 class ObjExp : public Exp {
 public:
     
-    ObjExp(std::vector<FieldDef> fields) {
+    ObjExp(std::string name, std::vector<FieldDef> fields) {
         this->fields = fields;
     }
+    std::string name;
     std::vector<FieldDef> fields;
 
 };
@@ -211,17 +247,6 @@ public:
 
 };
 
-class RangeExp : public Exp {
-public:
-    
-    RangeExp(expp begin, expp end) {
-        this->begin = begin;
-        this->end = end;
-    }
-    expp begin, end;
-
-};
-
 class TupleExp : public Exp {
 public:
     
@@ -229,29 +254,6 @@ public:
         this->elements = elements;
     }
     expl elements;
-
-};
-
-class FuncBody {
-public:
-    FuncBody() = default;
-    FuncBody(block stats, expp ret) {
-        this->stats = stats;
-        this->ret = ret;
-    }
-    block stats;
-    expp ret;
-};
-
-class FuncExp : public Exp {
-public:
-    
-    FuncExp(arglist args, FuncBody body) {
-        this->args = args;
-        this->body = body;
-    }
-    arglist args;
-    FuncBody body;
 
 };
 
@@ -281,11 +283,11 @@ public:
 class CallExp : public Exp {
 public:
     
-    CallExp(expp func, expl args) {
+    CallExp(lexpp func, expl args) {
         this->func = func;
         this->args = args;
     }
-    expp func;
+    lexpp func;
     expl args;
 
 };
@@ -304,7 +306,7 @@ public:
 
 };
 
-enum class BinOp {Pow, Mul, Div, Mod, Plus, Minus, Concat, Lteq, Lt, Gt, Gteq, Eq, Neq, And, Or};
+enum class BinOp {Mul, Div, Mod, Plus, Minus, Lteq, Lt, Eq, And, Or};
 
 class BinOpExp : public Exp {
 public:
@@ -330,3 +332,65 @@ public:
     expp then, cond, els;
 
 };
+
+class CastExp : public Exp {
+public:
+    CastExp(expp e, typep t) : e(e), t(t) {}
+    expp e;
+    typep t;
+};
+
+
+class Lexpsuffix {
+public:
+    virtual ~Lexpsuffix() {}
+};
+
+class IndexSuffix : public Lexpsuffix {
+public:
+    IndexSuffix(expp i) : i(i) {}
+    expp i;
+};
+
+class MemberSuffix : public Lexpsuffix {
+public:
+    MemberSuffix(std::string name) : name(name) {}
+    std::string name;
+};
+
+class Lexp {
+public:
+    Lexp(std::string name, std::vector<std::shared_ptr<Lexpsuffix>> suffixes,
+        std::shared_ptr<Type> type) : name(name), suffixes(suffixes), type(type) {}
+    std::string name;
+    std::vector<std::shared_ptr<Lexpsuffix>> suffixes;
+    std::shared_ptr<Type> type;
+};
+
+class Type {
+public:
+    virtual ~Type() {}
+};
+
+class TypeInt : public Type {};
+class TypeFloat : public Type {};
+class TypeBool : public Type {};
+class TypeString : public Type {};
+class TypeNil : public Type {};
+class TypeTuple : public Type {
+public: std::vector<typep> t;
+    TypeTuple(std::vector<typep> t) : t(t) {}
+};
+class TypeObj : public Type {
+public: std::string name;
+    TypeObj(std::string name) : name(name) {}
+};
+class TypeFunction: public Type {
+public: std::vector<typep> args; typep ret;
+    TypeFunction(std::vector<typep> args, typep ret) : args(args), ret(ret) {}
+};
+class TypeList: public Type {
+public :typep t;
+    TypeList(typep t) : t(t) {}
+};
+
