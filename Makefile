@@ -6,7 +6,7 @@ SRCDIR = src
 TESTDIR = test
 
 DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPSDIR)/$*.d
-FLAGS=-I/usr/include/antlr4-runtime/ -g -std=c++11
+FLAGS=-I/usr/include/antlr4-runtime/ -g -std=c++14
 LIBS=-lantlr4-runtime
 
 GRAMMARS = Philippe Bytecode
@@ -14,7 +14,7 @@ GRAMMARFILES = $(patsubst %, %.g4, ${GRAMMARS})
 
 PARSER = $(patsubst %, %Parser, ${GRAMMARS}) $(patsubst %, %Lexer, ${GRAMMARS})
 
-SRC = main ASTGen VirtualMachine Assembler Printer #CodeGen  Interpreter
+SRC = main ASTGen StaticAnalysis VirtualMachine Assembler Printer #CodeGen  Interpreter
 OBJPATH = $(patsubst %, $(OBJDIR)/%.o, $(PARSER) $(SRC))
 
 MAIN = main
@@ -23,7 +23,7 @@ PARSERDIR = $(SRCDIR)/parser
 PARSERH = $(patsubst %, $(PARSERDIR)/%.h, $(PARSER))
 PARSERSRC = $(patsubst %, $(PARSERDIR)/%.cpp, $(PARSER))
 
-all: $(MAIN) test
+all: $(MAIN)
 
 cleancompile:
 	rm -f $(MAIN)

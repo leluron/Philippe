@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <ostream>
+#include <map>
 
 class Exp;
 class Stat;
@@ -22,20 +23,13 @@ using defp = std::shared_ptr<Def>;
 using id = std::string;
 using arglist = std::vector<id>;
 
-class File {
-public:
-    std::vector<defp> defs;
-};
-
 class Def {
 public:
     virtual ~Def() {}
 };
 
-class GlobalDef : public Def {
+class Global {
 public:
-    GlobalDef(std::string name, typep type, expp value) : name(name), type(type), value(value) {}
-    std::string name;
     typep type;
     expp value;
 };
@@ -45,30 +39,41 @@ struct Arg {
     typep type;
 };
 
+class ObjDef {
+public:
+    std::vector<Arg> fields;
+};
+
+class File {
+public:
+    std::map<std::string, Global> globals;
+    std::map<std::string, ObjDef> objectDefinitions;
+    std::map<std::string, defp> functions;
+    std::map<std::string, typep> aliases;
+};
+
 class FunctionDef : public Def {
 public:
-    FunctionDef(std::string name, std::vector<Arg> args,
-        typep ret, block body) : name(name), args(args),
+    FunctionDef(std::vector<Arg> args,
+        typep ret, block body) : args(args),
         ret(ret), body(body) {}
-    std::string name;
     std::vector<Arg> args;
     typep ret;
     block body;
 };
 
-class AliasDef : public Def {
+class NativeFunction {};
+
+class NativeFunctionDef : public Def {
 public:
-    AliasDef(std::string name, typep t) : name(name), t(t) {}
-    std::string name;
-    typep t;
+    NativeFunctionDef(std::vector<typep> args, typep ret, std::shared_ptr<NativeFunction> func) : args(args),
+        ret(ret), func(func) {}
+
+    std::vector<typep> args;
+    typep ret;
+    std::shared_ptr<NativeFunction> func;
 };
 
-class ObjDef : public Def {
-public:
-    ObjDef(std::string name, std::vector<Arg> fields) : name(name), fields(fields) {}
-    std::string name;
-    std::vector<Arg> fields;
-};
 
 class Stat {
 public:
@@ -393,4 +398,4 @@ class TypeList: public Type {
 public :typep t;
     TypeList(typep t) : t(t) {}
 };
-
+class TypeVariable : public Type {};

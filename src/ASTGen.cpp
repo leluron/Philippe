@@ -1,19 +1,22 @@
 #include "ASTGen.h"
+#include "Stdlib.h"
+
+#include <algorithm>
 
 using namespace std;
 
-typep infer(expp e);
-
 File ASTGen::gen(PhilippeParser::FileContext *ctx) {
-    return visit(ctx);
+    loadStd();
+    visit(ctx);
+    resolveAliases();
+    return ast;
 }
 
 antlrcpp::Any ASTGen::visitFile(PhilippeParser::FileContext *ctx) {
-    File f;
     for (auto d : ctx->def()) {
-        f.defs.push_back(visit(d));
+        visit(d);
     }
-    return f;
+    return nullptr;
 }
 
 antlrcpp::Any ASTGen::visitGlobaldef(PhilippeParser::GlobaldefContext *ctx) {
@@ -22,9 +25,13 @@ antlrcpp::Any ASTGen::visitGlobaldef(PhilippeParser::GlobaldefContext *ctx) {
     typep t = nullptr;
     if (ctx->type()) t = visit(ctx->type());
 
-    return defp(new GlobalDef(
-        ctx->ID()->getText(),
-        t, value));
+    auto name = ctx->ID()->getText();
+    auto it = ast.globals.find(name);
+    if (it == ast.globals.end())
+        ast.globals.insert({name, {t, value}});
+    else throw "can't have globals with the same name";
+
+    return nullptr;
 }
 
 antlrcpp::Any ASTGen::visitFunctiondef(PhilippeParser::FunctiondefContext *ctx) {
@@ -44,13 +51,23 @@ antlrcpp::Any ASTGen::visitFunctiondef(PhilippeParser::FunctiondefContext *ctx) 
         else
             b.push_back(s1);
     }
-    return defp(new FunctionDef(
-        ctx->ID()->getText(), args, ret, b));
+    auto name = ctx->ID()->getText();
+    auto it = ast.functions.find(name);
+    if (it == ast.functions.end())
+        ast.functions.insert({name, defp(new FunctionDef(
+            args, ret, b))});
+    else throw "can't have functions with the same name";
+    return nullptr;
 }
 
 antlrcpp::Any ASTGen::visitAliasdef(PhilippeParser::AliasdefContext *ctx) {
-    return defp(new AliasDef(
-        ctx->ID()->getText(), visit(ctx->type())));
+    auto name = ctx->ID()->getText();
+    auto it = ast.aliases.find(name);
+    auto it2 = ast.objectDefinitions.find(name);
+    if (it == ast.aliases.end() && it2 == ast.objectDefinitions.end())
+        ast.aliases.insert({name, visit(ctx->type())});
+    else throw "can't have aliases and objects with the same name";
+    return nullptr;
 }
 
 antlrcpp::Any ASTGen::visitObjdef(PhilippeParser::ObjdefContext *ctx) {
@@ -58,7 +75,13 @@ antlrcpp::Any ASTGen::visitObjdef(PhilippeParser::ObjdefContext *ctx) {
     for (auto a : ctx->arg()) {
         args.push_back(visit(a));
     }
-    return defp(new ObjDef(ctx->ID()->getText(), args));
+    auto name = ctx->ID()->getText();
+    auto it = ast.objectDefinitions.find(name);
+    auto it2 = ast.aliases.find(name);
+    if (it == ast.objectDefinitions.end() && it2 == ast.aliases.end())
+        ast.objectDefinitions.insert({name, {args}});
+    else throw "can't have aliases and objects with the same name";
+    return nullptr;
 }
 
 antlrcpp::Any ASTGen::visitBreakstat(PhilippeParser::BreakstatContext *ctx) {
@@ -88,14 +111,13 @@ antlrcpp::Any ASTGen::visitReturnstat(PhilippeParser::ReturnstatContext *ctx) {
 
 antlrcpp::Any ASTGen::visitStdassign(PhilippeParser::StdassignContext *ctx) {
     expp e = visit(ctx->exp());
-    auto t = infer(e);
     if (ctx->lexpopttype().size() == 1) {
         lexpp lexp = visit(ctx->lexpopttype(0));
         return statp(new AssignStat(lexp, visit(ctx->exp())));
     } else {
         block out;
         auto tmp = newtmp();
-        out.push_back(statp(new AssignStat(lexpp(new Lexp(tmp, {}, infer(e))), e)));
+        out.push_back(statp(new AssignStat(lexpp(new Lexp(tmp, {}, nullptr)), e)));
         for (int i=0;i<ctx->lexpopttype().size();i++) {
             lexpp lexp = visit(ctx->lexpopttype(i));
             out.push_back(statp(new AssignStat(
@@ -195,7 +217,6 @@ antlrcpp::Any ASTGen::visitNilexp(PhilippeParser::NilexpContext *ctx) {
 
 antlrcpp::Any ASTGen::visitMemberexp(PhilippeParser::MemberexpContext *ctx) {
     expp l = visit(ctx->exp());
-    if (!dynamic_pointer_cast<TypeObj>(infer(l))) throw "has to be object to access member";
 
     return expp(new MemberExp(
         l, ctx->ID()->getText()));
@@ -308,14 +329,7 @@ antlrcpp::Any ASTGen::visitTrueexp(PhilippeParser::TrueexpContext *ctx) {
 
 antlrcpp::Any ASTGen::visitIndexexp(PhilippeParser::IndexexpContext *ctx) {
     expp l = visit(ctx->exp(0));
-    auto tl = infer(l);
-    if (!dynamic_pointer_cast<TypeList>(tl) &&
-        !dynamic_pointer_cast<TypeTuple>(tl)) throw "has to be a list or a tuple to access element";
-
     expp r = visit(ctx->exp(1));
-    auto tr = infer(r);
-    if (!dynamic_pointer_cast<TypeInt>(tr)) throw "has to be a list or a tuple to access element";
-
     return expp(new IndexExp(
         l, r));
 }
@@ -422,9 +436,8 @@ antlrcpp::Any ASTGen::visitObjaliastype(PhilippeParser::ObjaliastypeContext *ctx
 }
 
 antlrcpp::Any ASTGen::visitFunctype(PhilippeParser::FunctypeContext *ctx) {
-    typep ret;
+    typep ret = nullptr;
     if (ctx->ret) ret = visit(ctx->ret);
-    else ret = typep(new TypeNil());
 
     vector<typep> t;
     for (auto a : ctx->typeaux()) {
@@ -435,4 +448,31 @@ antlrcpp::Any ASTGen::visitFunctype(PhilippeParser::FunctypeContext *ctx) {
 
 antlrcpp::Any ASTGen::visitListtype(PhilippeParser::ListtypeContext *ctx) {
     return typep(new TypeList(visit(ctx->typeaux()).as<typep>()));
+}
+
+bool typesEqual(typep a, typep b) {
+    if (typeid(*a.get()) == typeid(*b.get())) {
+        if (auto a0 = dynamic_pointer_cast<TypeTuple>(a)) {
+            auto b0 = dynamic_pointer_cast<TypeTuple>(b);
+            for (int i=0;i<a0->t.size();i++) {
+                if (!typesEqual(a0->t[i], b0->t[i])) return false;
+            }
+            return true;
+        } else if (auto a0 = dynamic_pointer_cast<TypeObj>(a)) {
+            auto b0 = dynamic_pointer_cast<TypeObj>(b);
+            return a0->name == b0->name;
+        } else if (auto a0 = dynamic_pointer_cast<TypeFunction>(a)) {
+            auto b0 = dynamic_pointer_cast<TypeFunction>(b);
+            for (int i=0;i<a0->args.size();i++) {
+                if (!typesEqual(a0->args[i], b0->args[i])) return false;
+            }
+            return typesEqual(a0->ret, b0->ret);
+        } else if (auto a0 = dynamic_pointer_cast<TypeList>(a)) {
+            auto b0 = dynamic_pointer_cast<TypeList>(b);
+            return typesEqual(a0->t, b0->t);
+        }
+
+        return true;
+    }
+    return false;
 }

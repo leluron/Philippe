@@ -64,10 +64,16 @@ public:
     virtual antlrcpp::Any visitFunctype(PhilippeParser::FunctypeContext *ctx)  override;
     virtual antlrcpp::Any visitListtype(PhilippeParser::ListtypeContext *ctx)  override;
 
+    void resolveAliases();
+    typep replaceAlias(typep a, bool failOnObj);
+    void replaceAliases2(statp s);
+    void replaceAliases2(expp s);
 
 private:
     int tmpid = 0;
     std::string newtmp() {
         return "$" + tmpid++;
     }
+
+    File ast;
 };

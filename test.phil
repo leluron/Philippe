@@ -1,3 +1,13 @@
+type S = T
+type T = float
+type X = S
+type Y = X
+type Z = (X, Y)
+
+f = function(i : S) -> Z {
+	return (i, i*2 as Y)
+}
+
 main = function {
     i = 0
     n = 28472

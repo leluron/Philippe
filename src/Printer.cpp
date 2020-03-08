@@ -2,7 +2,6 @@
 
 using namespace std;
 
-void print(ostream &out, defp db);
 void print(ostream &out, int indent, statp sb);
 void print(ostream &out, expp eb);
 void print(ostream &out, typep tb);
@@ -23,42 +22,48 @@ void ind(ostream &out, int indent) {
 }
 
 void print(ostream &out, File f) {
-    for (auto d : f.defs) {
-        print(out, d);
-    }
-}
-
-void print(ostream &out, defp db) {
-    if (auto d = dynamic_pointer_cast<GlobalDef>(db)) {
-        out << d->name;
-        if (d->type) {
+    for (auto g : f.globals) {
+        out << g.first;
+        if (g.second.type) {
             out << " : ";
-            print(out, d->type);
+            print(out, g.second.type);
         }
         out << " = ";
-        print(out, d->value);
-    } else if (auto d = dynamic_pointer_cast<FunctionDef>(db)) {
-        out << d->name << " = function(";
-        for (auto a : d->args) {
-            out << a.name << " : ";
-            print(out, a.type);
-        }
-        out << ") {" << endl;
-        for (auto s : d->body) {
-            print(out, 1, s);
-            out << endl;
-        }
-        out << "}" << endl;
-    } else if (auto d = dynamic_pointer_cast<AliasDef>(db)) {
-        out << d->name << " = ";
-        print(out, d->t);
-    } else if (auto d = dynamic_pointer_cast<ObjDef>(db)) {
-        out << "type " << d->name << " = {";
-        for (auto a : d->fields) {
+        print(out, g.second.value);
+        out << endl;
+
+    }
+    for (auto d : f.objectDefinitions) {
+        out << "type " << d.first << " = {";
+        for (auto a : d.second.fields) {
             ind(out, 1);
             out << a.name << " : ";
             print(out, a.type);
         }
+        out << endl;
+    }
+    for (auto d : f.aliases) {
+        out << "type " << d.first << " = ";
+        print(out, d.second);
+        out << endl;
+    }
+    for (auto d : f.functions) {
+        if (auto f0 = dynamic_pointer_cast<FunctionDef>(d.second)) {
+            out << d.first << " = function(";
+            for (auto a : f0->args) {
+                out << a.name << " : ";
+                print(out, a.type);
+            }
+            out << ") -> ";
+            print(out, f0->ret); 
+            out << " {" << endl;
+            for (auto s : f0->body) {
+                print(out, 1, s);
+                out << endl;
+            }
+            out << "}" << endl;
+        }
+        out << endl;
     }
 }
 
