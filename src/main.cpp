@@ -34,8 +34,9 @@ int main() {
     interpret(cout, ast);
     */
 
-    VirtualMachine m(cout);
     /*
+    VirtualMachine m(cout);
+    
     m.load({
         LoadS, 28472, // Init, 0
         Store, n,
@@ -84,7 +85,6 @@ int main() {
         End, Noop, // 74
         '%', 'd', '\n', '\0' // printf string, 76
     });
-    */
 
     m.load(assemble(R"(
     loop:
@@ -142,6 +142,8 @@ int main() {
 
     cout << "VM output : " << endl;
     m.run();
+
+    */
 
     return 0;
 }

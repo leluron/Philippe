@@ -21,49 +21,40 @@ void ind(ostream &out, int indent) {
     for (int i=0;i<indent;i++) out << "\t";
 }
 
-void print(ostream &out, File f) {
-    for (auto g : f.globals) {
-        out << g.first;
-        if (g.second.type) {
-            out << " : ";
-            print(out, g.second.type);
-        }
-        out << " = ";
-        print(out, g.second.value);
-        out << endl;
+expp toRvalue(lexpp l) {
+    expp b = expp(new IdExp(l->name));
+    for (auto s : l->suffixes) {
+        if (auto ind = dynamic_pointer_cast<ListIndexSuffix>(s)) {
+            b = expp(new IndexExp(b, ind->i));
+        } else if (auto mem = dynamic_pointer_cast<TupleAccessSuffix>(s)) {
+            b = expp(new TupleAccessExp(b, mem->i));
+        } else throw;
+    }
+    return b;
 
-    }
-    for (auto d : f.objectDefinitions) {
-        out << "type " << d.first << " = {";
-        for (auto a : d.second.fields) {
-            ind(out, 1);
-            out << a.name << " : ";
-            print(out, a.type);
-        }
-        out << endl;
-    }
-    for (auto d : f.aliases) {
-        out << "type " << d.first << " = ";
-        print(out, d.second);
+}
+
+void print(ostream &out, File f) {
+    for (auto o0 : f.objectDefinitions) {
+        auto o = o0.second;
+        out << "type " << o0.first << " = ";
+        print(out, o.type);
         out << endl;
     }
     for (auto d : f.functions) {
-        if (auto f0 = dynamic_pointer_cast<FunctionDef>(d.second)) {
-            out << d.first << " = function(";
-            for (auto a : f0->args) {
-                out << a.name << " : ";
-                print(out, a.type);
-            }
-            out << ") -> ";
-            print(out, f0->ret); 
-            out << " {" << endl;
-            for (auto s : f0->body) {
-                print(out, 1, s);
-                out << endl;
-            }
-            out << "}" << endl;
+        out << d.first << " = function(";
+        for (auto a : d.second.args) {
+            out << a.name << " : ";
+            print(out, a.type);
         }
-        out << endl;
+        out << ") -> ";
+        print(out, d.second.ret); 
+        out << " {" << endl;
+        for (auto s : d.second.body) {
+            print(out, 1, s);
+            out << endl;
+        }
+        out << "}" << endl;
     }
 }
 
@@ -79,7 +70,7 @@ void print(ostream &out, int indent, statp sb) {
     } else {
         ind(out, indent);
         if (auto s = dynamic_pointer_cast<FuncCallStat>(sb)) {
-            print(out, s->func);
+            print(out, toRvalue(s->func));
             out << "(";
             printexpl(out, s->args, ", ");
             out << ")";
@@ -125,14 +116,6 @@ void print(ostream &out, expp eb) {
     } else if (auto e = dynamic_pointer_cast<IdExp>(eb)) {
         out << e->name;
         
-    } else if (auto e = dynamic_pointer_cast<ObjExp>(eb)) {
-        out << e->name << " {";
-        for (auto f : e->fields) {
-            out << f.name << "=";
-            print(out, f.e);
-        }
-        out << "}";
-        
     } else if (auto e = dynamic_pointer_cast<ListExp>(eb)) {
         out << "[";
         printexpl(out, e->elements, ", ");
@@ -143,44 +126,19 @@ void print(ostream &out, expp eb) {
         printexpl(out, e->elements, ", ");
         out << ")";
         
-    } else if (auto e = dynamic_pointer_cast<MemberExp>(eb)) {
-        print(out, e->left);
-        out << "." << e->name;
-        
     } else if (auto e = dynamic_pointer_cast<IndexExp>(eb)) {
         print(out, e->left);
         out << "[";
         print(out, e->index);
         out << "]";
-        
+    } else if (auto e = dynamic_pointer_cast<TupleAccessExp>(eb)) {
+        print(out, e->left);
+        out << "[" << e->index << "]";
     } else if (auto e = dynamic_pointer_cast<CallExp>(eb)) {
-        print(out, e->func);
+        print(out, toRvalue(e->func));
         out << "(";
         printexpl(out, e->args, ", ");
-        out << ")";
-    } else if (auto e = dynamic_pointer_cast<UnaryOpExp>(eb)) {
-        out << "(";
-        if (e->op == UnaryOp::Minus) out << "-";
-        else if (e->op == UnaryOp::Not) out << " not ";
-        print(out, e->e);
-        out << ")";
-        
-    } else if (auto e = dynamic_pointer_cast<BinOpExp>(eb)) {
-        out << "(";
-        print(out, e->left);
-        if (e->op == BinOp::Mul) out << "*";
-        else if (e->op == BinOp::Div) out << "/";
-        else if (e->op == BinOp::Mod) out << "%";
-        else if (e->op == BinOp::Plus) out << " + ";
-        else if (e->op == BinOp::Minus) out << " - ";
-        else if (e->op == BinOp::Lteq) out << " <= ";
-        else if (e->op == BinOp::Lt) out << " < ";
-        else if (e->op == BinOp::Eq) out << " == ";
-        else if (e->op == BinOp::And) out << " and ";
-        else if (e->op == BinOp::Or) out << " or ";
-        print(out, e->right);
-        out << ")";
-        
+        out << ")";  
     } else if (auto e = dynamic_pointer_cast<TernaryExp>(eb)) {
         out << "(";
         print(out, e->then);
@@ -194,7 +152,7 @@ void print(ostream &out, expp eb) {
         out << "(";
         print(out, e->e);
         out << " as ";
-        print(out, e->t);
+        print(out, e->type);
         out << ")";
     }
 }
@@ -220,7 +178,7 @@ void print(ostream &out, typep tb) {
             print(out, t0);
             out << " ";
         }
-        out << " -> ";
+        out << ") -> ";
         print(out, t->ret);
     } else if (auto t = dynamic_pointer_cast<TypeList>(tb)) {
         out << "list ";
@@ -231,13 +189,13 @@ void print(ostream &out, typep tb) {
 void print(ostream &out, lexpp lp) {
     out << lp->name;
     for (auto suf : lp->suffixes) {
-        if (auto ind = dynamic_pointer_cast<IndexSuffix>(suf)) {
-            out << "[";
+        out << "[";
+        if (auto ind = dynamic_pointer_cast<ListIndexSuffix>(suf)) {
             print(out, ind->i);
-            out << "]";
-        } else if (auto mem = dynamic_pointer_cast<MemberSuffix>(suf)) {
-            out << "." << mem->name;
+        } else if (auto mem = dynamic_pointer_cast<TupleAccessSuffix>(suf)) {
+            out << mem->i;
         }
+         out << "]";
     }
     if (lp->type) {
         out << " : ";

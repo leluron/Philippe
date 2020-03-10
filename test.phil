@@ -1,11 +1,13 @@
-type S = T
-type T = float
-type X = S
-type Y = X
-type Z = (X, Y)
+type t = {
+    a : int
+    b : string
+}
 
-f = function(i : S) -> Z {
-	return (i, i*2 as Y)
+type s = {
+    n : float
+    e : int
+    a : (int, int)
+    l : t
 }
 
 main = function {
@@ -16,4 +18,21 @@ main = function {
     	n = 3*n+1 if n%2==1 else n/2
     	i += 1
     }
+
+    a  = s {
+        e = 2
+        n = 9.0
+        a = (8,4)
+        l = t {
+            a = 0
+            b = "test"
+        }
+    }
+
+    a.a[1] = 2
+
+    a.e = a.n as int
+
+    printf("%d\n", a.l.a)
+
 }

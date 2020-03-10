@@ -15,9 +15,7 @@ public:
     File gen(PhilippeParser::FileContext *ctx);
 
     virtual antlrcpp::Any visitFile(PhilippeParser::FileContext *ctx)  override;
-    virtual antlrcpp::Any visitGlobaldef(PhilippeParser::GlobaldefContext *ctx)  override;
     virtual antlrcpp::Any visitFunctiondef(PhilippeParser::FunctiondefContext *ctx)  override;
-    virtual antlrcpp::Any visitAliasdef(PhilippeParser::AliasdefContext *ctx)  override;
     virtual antlrcpp::Any visitObjdef(PhilippeParser::ObjdefContext *ctx)  override;
     virtual antlrcpp::Any visitBreakstat(PhilippeParser::BreakstatContext *ctx)  override;
     virtual antlrcpp::Any visitBlockstat(PhilippeParser::BlockstatContext *ctx)  override;
@@ -64,16 +62,34 @@ public:
     virtual antlrcpp::Any visitFunctype(PhilippeParser::FunctypeContext *ctx)  override;
     virtual antlrcpp::Any visitListtype(PhilippeParser::ListtypeContext *ctx)  override;
 
-    void resolveAliases();
-    typep replaceAlias(typep a, bool failOnObj);
-    void replaceAliases2(statp s);
-    void replaceAliases2(expp s);
 
 private:
+    void loadStd();
+
+    void inferTypes();
+    void inferTypes(statp s);
+    typep inferTypes(expp e);
+    typep inferTypes(lexpp l);
+
+    std::vector<std::map<std::string, typep>> symbols;
+    void newSymbolFrame();
+    void popSymbolFrame();
+    typep getSymbol(std::string name);
+    void newSymbol(std::string name, typep t);
+
+    typep toReturn = nullptr;
+
+    int getFieldIndex(std::string obj, std::string name);
+    typep validateFuncCall(lexpp f, expl args);
+
+    lexpp idToLexp(std::string name);
+
     int tmpid = 0;
     std::string newtmp() {
         return "$" + tmpid++;
     }
+
+    expp toRvalue(lexpp l);
 
     File ast;
 };

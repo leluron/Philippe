@@ -3,9 +3,7 @@ grammar Philippe;
 file: def* EOF;
 
 def
-  : ID (':' type)? '=' exp #globaldef
-  | ID '=' 'function' ('(' (arg (',' arg)*)? ')')? ('->' type)? '{' stat* '}' #functiondef
-  | 'type' ID '=' type #aliasdef
+  : ID '=' 'function' ('(' (arg (',' arg)*)? ')')? ('->' type)? '{' stat* '}' #functiondef
   | 'type' ID '=' '{' arg+ '}' #objdef
   ;
 

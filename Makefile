@@ -3,7 +3,7 @@ VARS_OLD := $(.VARIABLES)
 DEPSDIR = .deps
 OBJDIR = .obj
 SRCDIR = src
-TESTDIR = test
+TESTDIR = grammar_tests
 
 DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPSDIR)/$*.d
 FLAGS=-I/usr/include/antlr4-runtime/ -g -std=c++14
@@ -14,7 +14,7 @@ GRAMMARFILES = $(patsubst %, %.g4, ${GRAMMARS})
 
 PARSER = $(patsubst %, %Parser, ${GRAMMARS}) $(patsubst %, %Lexer, ${GRAMMARS})
 
-SRC = main ASTGen StaticAnalysis VirtualMachine Assembler Printer #CodeGen  Interpreter
+SRC = main ASTGen VirtualMachine Assembler Printer #CodeGen  Interpreter
 OBJPATH = $(patsubst %, $(OBJDIR)/%.o, $(PARSER) $(SRC))
 
 MAIN = main
